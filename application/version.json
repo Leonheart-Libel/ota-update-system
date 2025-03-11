@@ -1,0 +1,6 @@
+{
+    "version": "1.0.0",
+    "release_notes": "Initial version",
+    "required_update": true,
+    "min_health_version": "1.0.0"
+  }
