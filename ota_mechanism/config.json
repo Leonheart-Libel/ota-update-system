@@ -1,15 +1,15 @@
 {
-    "github_token": "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",
-    "repo_owner": "Leonheart-Libel",
-    "repo_name": "ota-update-system",
-    "app_path": "./application",
-    "backup_path": "./backup",
-    "update_interval": 3600,
-    "health_check_interval": 60,
-    "health_check_timeout": 10,
-    "health_check_port": 8080,
-    "health_check_endpoint": "/health",
-    "min_memory_mb": 50,
-    "max_cpu_percent": 90,
-    "azure_db_connection_string": "Server=tcp:otaserver2.database.windows.net,1433;Initial Catalog=iot-data;Persist Security Info=False;User ID=rozemyne;Password=alexandria_7;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
-  }
+  "github_token": "YOUR_GITHUB_TOKEN",
+  "repo_owner": "YOUR_GITHUB_USERNAME",
+  "repo_name": "ota-update-system",
+  "app_path": "./application",
+  "backup_path": "./backup",
+  "update_interval": 3600,
+  "health_check_interval": 60,
+  "health_check_timeout": 10,
+  "health_check_port": 8080,
+  "health_check_endpoint": "/health",
+  "min_memory_mb": 50,
+  "max_cpu_percent": 90,
+  "azure_db_connection_string": "YOUR_AZURE_DB_CONNECTION_STRING"
+}
