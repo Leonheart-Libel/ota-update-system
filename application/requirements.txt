@@ -1,4 +1,4 @@
-flask==2.0.1
-pyodbc==4.0.32
-psutil==5.9.0
+flask==2.3.3
+pyodbc==4.0.39
+psutil==5.9.5
 requests==2.27.1

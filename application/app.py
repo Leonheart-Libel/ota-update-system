@@ -270,3 +270,30 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"Unhandled exception: {e}")
         data_generator.stop()
+
+# In app.py
+try:
+    import pyodbc
+    HAS_PYODBC = True
+except ImportError:
+    logger.warning("pyodbc not available, database functionality will be limited")
+    HAS_PYODBC = False
+
+# Then modify your DataGenerator class to handle this case
+def send_to_database(self, data):
+    """Send data to Azure SQL Database."""
+    if not self.connection_string:
+        logger.warning("No database connection string provided")
+        return False
+        
+    if not HAS_PYODBC:
+        logger.warning("pyodbc not available, storing data locally instead")
+        return self.store_locally(data)
+        
+    try:
+        conn = pyodbc.connect(self.connection_string)
+        # Rest of your code...
+    except Exception as e:
+        self.last_error = str(e)
+        logger.error(f"Failed to send data to database: {e}")
+        return False
