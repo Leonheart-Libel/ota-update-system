@@ -278,59 +278,59 @@ class OTAUpdater:
             logger.error(f"Health check error: {e}")
             return False
     
-def start_application(self) -> bool:
-    """Start the application in a subprocess."""
-    try:
-        app_script = os.path.join(self.app_path, "app.py")
-        if not os.path.exists(app_script):
-            logger.error(f"Application script not found: {app_script}")
-            return False
-            
-        # Kill any existing process
-        self.stop_application()
-        
-        # Install dependencies with better error handling
-        req_file = os.path.join(self.app_path, "requirements.txt")
-        if os.path.exists(req_file):
-            try:
-                # Try to install with pip
-                logger.info("Installing dependencies...")
-                # Add --no-build-isolation flag to use system packages
-                result = subprocess.run(
-                    [sys.executable, "-m", "pip", "install", "-r", req_file, "--no-build-isolation"],
-                    capture_output=True,
-                    text=True,
-                    check=False  # Don't raise exception on non-zero exit
-                )
+    def start_application(self) -> bool:
+        """Start the application in a subprocess."""
+        try:
+            app_script = os.path.join(self.app_path, "app.py")
+            if not os.path.exists(app_script):
+                logger.error(f"Application script not found: {app_script}")
+                return False
                 
-                if result.returncode != 0:
-                    logger.error(f"Failed to install dependencies: {result.stderr}")
-                    # Try to install packages one by one
-                    with open(req_file, 'r') as f:
-                        packages = [line.strip() for line in f if line.strip() and not line.startswith('#')]
+            # Kill any existing process
+            self.stop_application()
+            
+            # Install dependencies with better error handling
+            req_file = os.path.join(self.app_path, "requirements.txt")
+            if os.path.exists(req_file):
+                try:
+                    # Try to install with pip
+                    logger.info("Installing dependencies...")
+                    # Add --no-build-isolation flag to use system packages
+                    result = subprocess.run(
+                        [sys.executable, "-m", "pip", "install", "-r", req_file, "--no-build-isolation"],
+                        capture_output=True,
+                        text=True,
+                        check=False  # Don't raise exception on non-zero exit
+                    )
                     
-                    logger.info("Attempting to install packages individually...")
-                    for package in packages:
-                        try:
-                            subprocess.run(
-                                [sys.executable, "-m", "pip", "install", package, "--no-build-isolation"],
-                                check=True
-                            )
-                            logger.info(f"Successfully installed {package}")
-                        except Exception as e:
-                            logger.error(f"Failed to install {package}: {e}")
-                else:
-                    logger.info("Dependencies installed successfully")
-            except Exception as e:
-                logger.error(f"Failed to install dependencies: {e}")
-        
-        # Start application
-        self.app_process = subprocess.Popen([sys.executable, app_script])
-        logger.info(f"Application started with PID {self.app_process.pid}")
-        return True
-    except Exception as e:
-        logger.error(f"Failed to start application: {e}")
-        return False
+                    if result.returncode != 0:
+                        logger.error(f"Failed to install dependencies: {result.stderr}")
+                        # Try to install packages one by one
+                        with open(req_file, 'r') as f:
+                            packages = [line.strip() for line in f if line.strip() and not line.startswith('#')]
+                        
+                        logger.info("Attempting to install packages individually...")
+                        for package in packages:
+                            try:
+                                subprocess.run(
+                                    [sys.executable, "-m", "pip", "install", package, "--no-build-isolation"],
+                                    check=True
+                                )
+                                logger.info(f"Successfully installed {package}")
+                            except Exception as e:
+                                logger.error(f"Failed to install {package}: {e}")
+                    else:
+                        logger.info("Dependencies installed successfully")
+                except Exception as e:
+                    logger.error(f"Failed to install dependencies: {e}")
+            
+            # Start application
+            self.app_process = subprocess.Popen([sys.executable, app_script])
+            logger.info(f"Application started with PID {self.app_process.pid}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to start application: {e}")
+            return False
     
     def stop_application(self) -> None:
         """Stop the running application."""
