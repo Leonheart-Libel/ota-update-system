@@ -1,0 +1,4 @@
+flask==2.0.1
+pyodbc==4.0.32
+psutil==5.9.0
+requests==2.27.1
