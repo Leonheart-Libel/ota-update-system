@@ -9,7 +9,24 @@ import threading
 import socket
 import psutil
 from flask import Flask, jsonify
-import pyodbc
+
+# Add at the beginning of app.py
+try:
+    import pyodbc
+    HAS_PYODBC = True
+except ImportError:
+    logger.warning("pyodbc not available, database functionality will be limited")
+    HAS_PYODBC = False
+
+# Then modify the DataGenerator class:
+def send_to_database(self, data):
+    if not self.connection_string:
+        logger.warning("No database connection string provided")
+        return False
+        
+    if not HAS_PYODBC:
+        logger.warning("pyodbc not available, storing data locally instead")
+        return self.store_locally(data)
 
 # Configure logging
 logging.basicConfig(
@@ -33,10 +50,19 @@ except Exception as e:
 
 # Load configuration
 try:
-    sys.path.append('..')
-    with open('../ota_mechanism/config.json', 'r') as f:
-        config = json.load(f)
-    AZURE_DB_CONNECTION_STRING = config.get('azure_db_connection_string')
+    # Try relative path first
+    config_path = '../ota_mechanism/config.json'
+    if not os.path.exists(config_path):
+        # Try absolute path
+        config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../ota_mechanism/config.json')
+    
+    if os.path.exists(config_path):
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+        AZURE_DB_CONNECTION_STRING = config.get('azure_db_connection_string')
+    else:
+        logger.error("Config file not found")
+        AZURE_DB_CONNECTION_STRING = None
 except Exception as e:
     logger.error(f"Failed to load config: {e}")
     AZURE_DB_CONNECTION_STRING = None
@@ -270,14 +296,6 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"Unhandled exception: {e}")
         data_generator.stop()
-
-# In app.py
-try:
-    import pyodbc
-    HAS_PYODBC = True
-except ImportError:
-    logger.warning("pyodbc not available, database functionality will be limited")
-    HAS_PYODBC = False
 
 # Then modify your DataGenerator class to handle this case
 def send_to_database(self, data):
