@@ -278,7 +278,7 @@ class OTAUpdater:
             logger.error(f"Health check error: {e}")
             return False
     
-    def start_application(self) -> bool:
+def start_application(self) -> bool:
     """Start the application in a subprocess."""
     try:
         app_script = os.path.join(self.app_path, "app.py")
