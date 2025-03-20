@@ -10,6 +10,8 @@ import subprocess
 import threading
 from datetime import datetime
 from typing import Dict, Any, Optional
+from azure_db_helper import AzureDBHelper
+
 
 # Configure logging
 logging.basicConfig(
@@ -36,6 +38,18 @@ class OTAUpdater:
         self.health_monitor = None
         self.last_healthy_version = None
         self.initialize_paths()
+        self.initialize_db_connection()
+    def initialize_db_connection(self):
+        """Initialize the Azure database connection."""
+        try:
+            self.db_helper = AzureDBHelper(self.config.get("azure_db_connection_string"))
+            if not self.db_helper.test_connection():
+                logger.warning("Failed to connect to Azure database")
+            else:
+                logger.info("Successfully connected to Azure database")
+        except Exception as e:
+            logger.error(f"Failed to initialize database connection: {e}")
+            self.db_helper = None
         
     def initialize_paths(self) -> None:
         """Ensure all necessary directories exist."""
@@ -323,7 +337,7 @@ class OTAUpdater:
                         logger.info("Dependencies installed successfully")
                 except Exception as e:
                     logger.error(f"Failed to install dependencies: {e}")
-            
+                
             # Start application
             self.app_process = subprocess.Popen([sys.executable, app_script])
             logger.info(f"Application started with PID {self.app_process.pid}")
@@ -352,14 +366,30 @@ class OTAUpdater:
         if not self.check_for_updates():
             logger.info("No updates available")
             return False
-            
+                
         logger.info("Update available, starting update process")
+        
+        # Get current and latest version info
+        current_version = self._get_current_version()
+        latest_version = self._get_latest_version()
+        current_v = current_version.get("version", "0.0.0") if current_version else "0.0.0"
+        latest_v = latest_version.get("version", "0.0.0") if latest_version else "0.0.0"
+        
+        # Log update start
+        self.log_update_to_db(latest_v, "started", {
+            "previous_version": current_v,
+            "reason": "scheduled_check"
+        })
         
         # Backup current application
         if not self.backup_current_application():
             logger.error("Failed to backup current application, aborting update")
+            self.log_update_to_db(latest_v, "failed", {
+                "stage": "backup",
+                "error": "Failed to backup current application"
+            })
             return False
-            
+                
         # Stop application
         self.stop_application()
         
@@ -368,24 +398,46 @@ class OTAUpdater:
             logger.error("Failed to download update, rolling back")
             self.restore_from_backup()
             self.start_application()
+            self.log_update_to_db(latest_v, "failed", {
+                "stage": "download",
+                "error": "Failed to download update",
+                "action": "rolled_back"
+            })
             return False
-            
+                
         # Start updated application
         if not self.start_application():
             logger.error("Failed to start updated application, rolling back")
             self.restore_from_backup()
             self.start_application()
+            self.log_update_to_db(latest_v, "failed", {
+                "stage": "startup",
+                "error": "Failed to start updated application",
+                "action": "rolled_back"
+            })
             return False
-            
+                
         # Perform health check
         if not self.perform_health_check():
             logger.error("Health check failed after update, rolling back")
             self.stop_application()
             self.restore_from_backup()
             self.start_application()
+            self.log_update_to_db(latest_v, "failed", {
+                "stage": "health_check",
+                "error": "Health check failed",
+                "action": "rolled_back"
+            })
             return False
-            
+                
         logger.info("Update successful")
+        
+        # Log update success
+        self.log_update_to_db(latest_v, "completed", {
+            "previous_version": current_v,
+            "health_check": "passed"
+        })
+        
         return True
     
     def run_continuous_updates(self) -> None:
@@ -427,6 +479,32 @@ class OTAUpdater:
         except Exception as e:
             logger.error(f"Unexpected error in continuous update process: {e}")
             self.stop_application()
+
+    def log_update_to_db(self, version, status, details=None):
+        """Log update information to Azure database."""
+        if not hasattr(self, "db_helper") or self.db_helper is None:
+            logger.warning("Database helper not initialized, can't log update")
+            return
+            
+        try:
+            # Create log entry
+            log_entry = {
+                "timestamp": datetime.now().isoformat(),
+                "version": version,
+                "status": status,
+                "details": details or {}
+            }
+            
+            # Convert to JSON
+            log_data = json.dumps(log_entry).encode('utf-8')
+            
+            # Upload to blob storage
+            blob_name = f"update_logs/{version}_{datetime.now().strftime('%Y%m%d%H%M%S')}.json"
+            self.db_helper.upload_to_blob("ota-logs", blob_name, log_data)
+            
+            logger.info(f"Update log saved to Azure: {blob_name}")
+        except Exception as e:
+            logger.error(f"Failed to log update to database: {e}")
 
 if __name__ == "__main__":
     updater = OTAUpdater()

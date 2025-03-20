@@ -202,6 +202,62 @@ def run_all_checks():
         logger.error("HEALTH CHECK FAILED")
         return 1
 
+# Add to healthcheck.py - add this function
+
+def check_azure_db_connection():
+    """Check if the Azure DB connection is working."""
+    try:
+        config = load_config()
+        
+        # Skip check if no connection string configured
+        if not config.get("azure_db_connection_string"):
+            logger.info("No Azure DB connection string configured, skipping check")
+            return True
+            
+        # Import the helper module
+        sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+        from azure_db_helper import AzureDBHelper
+        
+        # Initialize and test
+        helper = AzureDBHelper(config.get("azure_db_connection_string"))
+        if helper.test_connection():
+            logger.info("Azure DB connection check passed")
+            return True
+        else:
+            logger.error("Azure DB connection check failed")
+            return False
+    except Exception as e:
+        logger.error(f"Error checking Azure DB connection: {e}")
+        return False
+
+# Then update the run_all_checks function to include this check:
+
+def run_all_checks():
+    """Run all health checks and return overall status."""
+    checks = {
+        "app_running": check_app_running(),
+        "endpoint_health": check_endpoint_health(),
+        "resource_usage": check_resource_usage(),
+        "data_generation": check_data_generation(),
+        "version_file": check_version_file(),
+        "azure_db_connection": check_azure_db_connection()  # Add this line
+    }
+    
+    # Log all check results
+    for check_name, result in checks.items():
+        logger.info(f"Check '{check_name}': {'PASSED' if result else 'FAILED'}")
+    
+    # Overall health is ok if all critical checks pass
+    critical_checks = ["app_running", "endpoint_health", "version_file"]
+    health_status = all(checks[check] for check in critical_checks)
+    
+    if health_status:
+        logger.info("HEALTH CHECK PASSED")
+        return 0
+    else:
+        logger.error("HEALTH CHECK FAILED")
+        return 1
+
 if __name__ == "__main__":
     try:
         exit_code = run_all_checks()
